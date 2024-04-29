@@ -1,0 +1,1156 @@
+---
+title: "Validation de modèles de régression en R"
+subtitle: "17^e^ Colloque du CEF"
+lang: en
+date: 2024-05-01
+date-format: iso
+author:
+  - name: Daniel Schoenig
+    corresponding: true
+    affiliations:
+      - ref: cef
+  - name: Mégane Déziel
+    corresponding: true
+    affiliations:
+      - ref: cef
+affiliations:
+  - id: cef
+    name: Centre d'étude de la forêt, Université du Québec à Montréal
+    city: Montréal
+bibliography: /home/danielschoenig/cloud/phd/literature/bibliographies/phd_all.json
+csl: /home/danielschoenig/cloud/phd/literature/styles/nature.csl
+cache: true
+execute:
+  echo: false
+format:
+  beamer:
+    classoption: t
+    aspectratio: 169
+    theme: metropolis
+    fontsize: 10pt
+    mainfont: IBMPlexSans
+    mainfontoptions:
+      - Extension=.otf
+      - UprightFont=*-Light
+      - ItalicFont=*-LightItalic
+      - BoldFont=*-Medium
+      - BoldItalicFont=*-MediumItalic
+    monofont: IBMPlexMono
+    latex-tinytex: true
+    /* pdf-engine: xelatex */
+    header-includes: |
+      \metroset{titleformat frame=regular,
+                sectionpage=simple}
+      \definecolor{aGreen}{HTML}{228833}
+      \definecolor{bgPurple}{HTML}{120E2A}
+      \setbeamercolor{alerted text}{%
+        fg=aGreen
+      }
+      \setbeamercolor{normal text}{%
+        fg=black,
+        bg=white
+        }  
+      \setbeamercolor{frametitle}{%
+        fg=black,
+        bg=white
+        }
+      \newfontfamily\titlefont{IBMPlexSansCondensed-Bold.otf}
+      \setbeamerfont{frametitle}{family=\titlefont, size=\fontsize{14}{21}}
+      \makeatletter
+      \setlength{\metropolis@frametitle@padding}{3ex}
+      \beamer@ignorenonframefalse
+      \makeatother
+      \usepackage[export]{adjustbox}
+      \tikzset{ffgcaption/.style={%
+        anchor=south east,font=\tiny,
+        text=white,fill=black,
+        fill opacity=.5,text opacity=1,inner sep=2pt,
+        text height=1ex,text depth=.25ex}
+        }
+      \newcommand{\fullframegraphic}[2][]{%
+        \begin{tikzpicture}[remember picture,overlay]%
+        \node[at=(current page.center)] {
+        \includegraphics[height=\paperheight,width=\paperwidth,keepaspectratio]{#2}
+        };%
+        \ifx\relax#1\relax\else%
+        \node[at=(current page.south east),ffgcaption] {#1};%
+        \fi%
+        \end{tikzpicture}%
+        }
+---
+
+
+```{r setup}
+#| include: false
+#| cache: false
+library(DHARMa)
+library(data.table)
+library(lme4)
+library(glmmTMB)
+library(mgcv)
+library(marginaleffects)
+library(ggplot2)
+library(colorspace)
+library(sf)
+
+options(show.signif.stars = FALSE)
+
+base.family <- "IBMPlexSansCondensed"
+base.size <- 11
+plot_theme <-
+  theme_light(base_size = base.size) +
+  theme(
+        plot.title = element_text(hjust = 0,
+                                  face = "bold",
+                                  margin = margin(l = 0, b = base.size/3, t = base.size/3)),
+        plot.tag = element_text(face = "bold"),
+        axis.line.x = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.line.y = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.title.x = element_text(margin = margin(t = base.size/2)),
+        axis.title.y = element_text(margin = margin(r = base.size/2)),
+        # axis.text.y = element_text(color = "black", size = rel(1)),
+        # axis.text.x = element_text(color = "black"),
+        # legend.title = element_text(margin = margin(b = base.size)),
+        legend.position = "right",
+        legend.justification = "top",
+        legend.key.size = unit(base.size, "pt"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.spacing.x = unit(base.size, "pt"),
+        # panel.spacing.y = unit(base.size/2, "pt"),
+        plot.margin = margin(3, 3, 3, 3),
+        strip.text = element_text(size = rel(0.8),
+                                  hjust = 0.5,
+                                  color = "black",
+                                  margin = margin(base.size/2,
+                                                  base.size/2,
+                                                  base.size/2,
+                                                  base.size/2)),
+        strip.background = element_rect(fill = "gray90", colour = NA))
+theme_set(plot_theme)
+```
+
+
+# Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
+
+## Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/gutten.png){height=75% fig-align="center"}
+\scriptsize
+Image: Wikimedia (Michela Modena)
+:::
+
+::: {.column width="70%"}
+
+#### Données 
+`gutten.rds`
+
+#### Références
+
+\small
+Guttenberg, A. R. von. (1915). Wachstum und Ertrag der Fichte im
+Hochgebirge. Franz Deuticke. https://doi.org/10.5962/bhl.title.15664
+
+Zeide, B. (1993). Analysis of Growth Equations. Forest Science, 39(3),
+594–616. https://doi.org/10.1093/forestscience/39.3.594
+
+Robinson, A. P., & Hamann, J. D. (2011). Forest analytics with R: An
+introduction. Springer.
+
+:::
+
+::::
+
+
+## Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/gutten.png){height=75% fig-align="center"}
+\scriptsize
+Image: Wikimedia (Michela Modena)
+:::
+
+::: {.column width="70%"}
+
+#### Données 
+`gutten.rds`
+
+#### Variables
+
+\small
+- `quality`: indice de qualité de site, de 1 (le meilleur) à 5 (le
+  pire) ;
+- `site`: identité du site ;
+- `tree`: identité de l'arbre dans le site ;
+- `age.base` : âge de l'arbre déterminé au niveau du sol (années) ;
+- `height` : hauteur de l'arbre (m) ;
+- `dbh.cm` : diamètre de l'arbre à hauteur de poitrine (cm) ;
+- `age.bh` : âge de l'arbre à hauteur de poitrine (années) ;
+- `volume` : volume de l'arbre (10^-3^ m^3^) ;
+- `tree.id`: identité unique de l'arbre.
+
+:::
+
+::::
+
+
+## Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
+
+![](figures/gutten.png){height=80% fig-align="center"}
+
+
+
+# Résidus quantiles
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.1.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.2.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.3.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.4.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.1.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.10.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.5.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.1.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.6.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.1.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.7.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.4.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.8.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+
+## Résidus quantiles
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.2.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+## Résidus quantiles
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.3.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus quantiles
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.10.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.6.png){height=80% fig-align="left"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus quantiles
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.lm.9.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Modèle linéaire
+
+:::: {.columns}
+::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathcal{N}(\mu_i, \sigma^2)$$
+
+:::
+
+::: {.column width="50%"}
+:::
+::::
+
+
+## Modèle linéaire
+
+:::: {.columns}
+::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathcal{N}(\mu_i, \sigma^2)$$
+
+$$\mu_i = \alpha + \beta x_i + \cdots$$
+
+:::
+
+::: {.column width="50%"}
+:::
+::::
+
+
+## Modèle linéaire
+
+:::: {.columns}
+::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathcal{N}(\mu_i, \sigma^2)$$
+
+$$\mu_i = \alpha + \beta x_i + \cdots$$
+
+$$y_i = \mu_i + r_i$$
+:::
+
+::: {.column width="50%"}
+Résidu: $r_i \sim \mathcal{N}(0, \sigma^2)$
+:::
+::::
+
+
+## Modèle linéaire
+
+:::: {.columns align=top-baseline}
+::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathcal{N}(\mu_i, \sigma^2)$$
+
+$$\mu_i = \alpha + \beta x_i + \cdots$$
+
+$$y_i = \mu_i + r_i$$
+:::
+
+::: {.column width="50%"}
+Résidu: $r_i \sim \mathcal{N}(0, \sigma^2)$
+
+\
+
+**Résidu quantile**: $r_{Qi} \sim \mathcal{U}_{[0, 1]}$
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.1.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.2.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.7.png){height=80% fig-align="right"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.3.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.9.png){height=80% fig-align="right"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.3.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+![](figures/res.d.10.png){height=80% fig-align="right"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.4.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Résidus du modèle linéaire généralisé
+
+:::: {.columns}
+::: {.column width="65%"}
+![](figures/res.glm.5.png){height=80% fig-align="right"}
+:::
+::: {.column width="25%"}
+:::
+::: {.column width="10%"}
+:::
+::::
+
+
+## Modèle linéaire généralisé
+
+:::: {.columns align=top-baseline}
+::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathrm{EF}(\mu_i, \phi)$$
+
+$$g(\mu_i) = \alpha + \beta x_i + \cdots$$
+
+$$y_i = \mu_i + r_i$$
+:::
+
+::: {.column width="50%"}
+Résidu: $r_i \sim ?$
+
+\
+
+**Résidu quantile**: $r_{Qi} \sim \mathcal{U}_{[0, 1]}$
+:::
+::::
+
+
+
+# Graphiques de résidus quantiles
+
+## Graphiques de résidus quantiles
+
+
+![](figures/dharma.1.png){height=80% fig-align="center"}
+
+
+
+## Graphiques de résidus quantiles
+
+:::: {.columns}
+::: {.column width="50%"}
+### Dispersion correcte
+
+![](figures/dharma.2.png){height=80% fig-align="left"}
+:::
+::: {.column width="50%"}
+### Surdispersion
+
+![](figures/dharma.4.png){height=80% fig-align="left"}
+:::
+::::
+
+
+
+## Graphiques de résidus quantiles
+
+:::: {.columns}
+::: {.column width="50%"}
+### Dispersion correcte
+
+![](figures/dharma.2.png){height=80% fig-align="left"}
+:::
+::: {.column width="50%"}
+### Sousdispersion
+
+![](figures/dharma.5.png){height=80% fig-align="left"}
+:::
+::::
+
+
+
+## Surdispersion et sousdispersion
+
+### Surdispersion (*overdispersion*)
+
+- Il y a plus de résidus extrêmes que prévu par le modèle.
+- Le modèle ne prend pas en compte une partie de l'incertitude.
+- Les intervalles de confiance sont trop petits et les valeurs p sont trop
+  faibles.
+
+
+### Sousdispersion (*underdispersion*)
+
+- Il y a moins de résidus extrêmes que prévu par le modèle.
+- Le modèle prevoit trop de incertitude.
+- Souvent moins grave que la surdispersion parce que l'inférence devient plus
+  conservatrice.
+
+
+## Graphiques de résidus quantiles
+
+:::: {.columns}
+::: {.column width="50%"}
+### Homoscédasticité
+
+![](figures/dharma.3.png){height=80% fig-align="left"}
+:::
+::: {.column width="50%"}
+### Hétéroscédasticité
+
+![](figures/dharma.6.png){height=80% fig-align="left"}
+:::
+::::
+
+
+
+## Rapporter la validation par résidus quantiles
+
+### La méthode
+
+Dunn, P. K., & Smyth, G. K. (1996). Randomized Quantile Residuals.
+Journal of Computational and Graphical Statistics, 5(3), 236‑244.
+https://doi.org/10.1080/10618600.1996.10474708
+
+
+### Le package
+
+Hartig, F. (2022). DHARMa : Residual diagnostics for hierarchical
+(multi-level / mixed) regression models. R package version 0.4.6,
+https://CRAN.R-project.org/package=DHARMa
+
+
+## Rapporter la validation par résidus quantiles
+
+### Comment citer
+
+Model assumptions were validated by inspecting quantile residuals
+(Dunn & Smyth, 1996), as implemented in the *R* package DHARMa
+(Hartig, 2022).
+
+
+## Rapporter la validation par résidus quantiles
+
+### Comment citer
+
+Model assumptions were validated by inspecting quantile residuals
+(Dunn & Smyth, 1996), as implemented in the *R* package DHARMa
+(Hartig, 2022).
+
+\
+
+:::{.callout-note appearance="minimal"}
+Il est recommandé d'inclure les graphiques résiduels dans l'annexe ou
+dans le matériel supplémentaire.
+:::
+
+
+
+# Quelques distributions pour la variable de réponse
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
+|                              |                          | souvent problèmes de surdispersion.                                                 |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
+|                              |                          | souvent problèmes de surdispersion.                                                 |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que la distribution Poisson).                                   |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
+|                              |                          | souvent problèmes de surdispersion.                                                 |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que la distribution Poisson).                                   |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que les distributions Gamma                                     |
+|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
+|                              |                          | de zéros.                                                                           |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
+|                              |                          | souvent problèmes de surdispersion.                                                 |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que la distribution Poisson).                                   |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que les distributions Gamma                                     |
+|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
+|                              |                          | de zéros.                                                                           |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible                                    |
+|                              |                          | surdispersion. Équivalente à une distribution                                       |
+|                              |                          | binomiale avec un essai.                                                            |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
+|                              |                          | souvent problèmes de surdispersion.                                                 |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que la distribution Poisson).                                   |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
+|                              |                          | façon plus flexible que les distributions Gamma                                     |
+|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
+|                              |                          | de zéros.                                                                           |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible                                    |
+|                              |                          | surdispersion. Équivalente à une distribution                                       |
+|                              |                          | binomiale avec un essai.                                                            |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+
+# Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
+
+## Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/sitka.jpeg){height=75% fig-align="center"}
+\scriptsize
+Image: Wikimedia (Brandon Kuschel)
+:::
+
+::: {.column width="70%"}
+
+#### Données 
+`sitka.rds`
+
+#### Références
+
+\small
+Diggle, P., Heagerty, P., Liang, K.-Y., & Zeger, S. (2002). Analysis of
+Longitudinal Data (Second Edition). Oxford University Press.
+
+Données recueillies par Dr Peter Lucas (*Biological Sciences Division,
+Lancaster University*).
+
+:::
+
+::::
+
+
+## Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/sitka.jpeg){height=75% fig-align="center"}
+\scriptsize
+Image: Wikimedia (Brandon Kuschel)
+:::
+
+::: {.column width="70%"}
+
+#### Données 
+`sitka.csv`
+
+#### Variables
+
+\small
+- `tree.id` : identité de l'arbre (79 individus) ;
+- `day` : nombre de jours depuis le 1er janvier 1988 ;
+- `size` : taille de l'arbre (hauteur multipliée par le diamètre,
+  10^-4^ m^3^) ;
+- `treatment` : indique si les arbres sont maintenus dans un
+  environnement normal (`control`) ou enrichi (70 nl l^-1^) en ozone
+  (`ozone`).
+
+:::
+
+::::
+
+
+## Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
+
+![](figures/sitka.png){height=80% fig-align="center"}
+
+
+
+# Exemple 3: Distribution des lichens en Suède
+
+## Exemple 3: Distribution des lichens en Suède
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/lichen.jpg){height=80% fig-align="center"}
+
+\scriptsize
+Image: Wikimedia (Lisalunamorris)
+:::
+
+::: {.column width="70%"}
+
+
+#### Données
+`lichen.csv`
+
+#### Références
+
+\small
+Esseen, Per-Anders et al. (2022), Multiple drivers of large‐scale lichen
+decline in boreal forest canopies, Dryad, Dataset,
+https://doi.org/10.5061/dryad.2ngf1vhq5
+
+Esseen, P.-A., Ekström, M., Grafström, A., Jonsson, B. G., Palmqvist,
+K., Westerlund, B., & Ståhl, G. (2022). Multiple drivers of large-scale
+lichen decline in boreal forest canopies. Global Change Biology, 28(10),
+3293–3309. https://doi.org/10.1111/gcb.16128
+
+:::
+
+::::
+
+
+
+
+
+## Exemple 3: Distribution des lichens en Suède
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/lichen.jpg){height=80% fig-align="center"}
+
+\scriptsize
+Image: Wikimedia (Lisalunamorris)
+:::
+
+::: {.column width="70%"}
+
+
+#### Données
+`lichen.rds`
+
+#### Variables
+
+\small
+- `tree.id` : identité unique de l'arbre ;
+- *Informations sur l'inventaire* : `ip` (période d'inventaire, `1` ou
+  `2`) ; `region` (région de l'inventaire) ; `year` (année de
+  l'évaluation) ;
+- `east`, `north` : coordonnées projetées dans la grille de référence
+  suédoise (EPSG : 3006) ;
+- `species` : genre du lichen (soit `Usnea`, `Aleactoria`, ou `Bryoria`)
+  ;
+- `occurrence` : indique si des lichens du genre correspondant ont été
+  trouvés sur l'arbre (`1`) ou pas (`0`) ;
+
+:::
+
+::::
+
+
+## Exemple 3: Distribution des lichens en Suède
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/lichen.jpg){height=80% fig-align="center"}
+
+\scriptsize
+Image: Wikimedia (Lisalunamorris)
+:::
+
+::: {.column width="70%"}
+
+
+#### Données
+`lichen.rds`
+
+#### Variables (suite)
+
+\small
+- …
+- **Variables environnementales** : `mat` (proportion de forêts matures
+  dans un rayon de 100 m) ; `temp` (température annuelle moyenne, °C) ;
+  `rain` (cumul annuel de pluie, mm) ; `ndep` (dépôt annuel moyen
+  d'azote, kg N ha^-1^ an^-1^) ;
+- **Variables au niveau de l'arbre** : `dbh` (diamètre à hauteur de
+  poitrine, mm) ; `crl` (limite du houppier, m) ;
+- **Variables au niveau du peuplement** : `bas` (surface terrière, m^2^
+  ha^-1^), `age` (âge du peuplement) ;
+
+:::
+
+::::
+
+## Exemple 3: Distribution des lichens en Suède
+
+:::: {.columns}
+
+::: {.column width="30%"}
+![](assets/lichen.jpg){height=80% fig-align="center"}
+
+\scriptsize
+Image: Wikimedia (Lisalunamorris)
+:::
+
+::: {.column width="70%"}
+
+
+#### Données
+`lichen.rds`
+
+#### Variables (suite)
+
+\small
+
+- …
+- Grille d'agrégation spatiale (20km×20km) : `east.agg`, `north.agg`,
+  `rast.agg.id`
+
+:::
+
+::::
+
+
+## Exemple 3: Distribution des lichens en Suède
+
+![](figures/lichen.png){height=80% fig-align="center"}
+
+
+
+
+# Functions importantes
+
+
+## Functions importantes
+
+### Fonctions principales
+
++-----------------------+--------------------------------------------------------+
+| Fonction              | Déscription                                            |
++=======================+========================================================+
+| `simulateResiduals()` | Simuler de résidus quantiles randomisés.               |
++-----------------------+--------------------------------------------------------+
+| `plot()`              | Produire un graphique QQ (comme `testUniformity()`) et |
+|                       | un graphique des résidus en fonction des valeures      |
+|                       | prédites (comme `testQuantiles)`.                      |
++-----------------------+--------------------------------------------------------+
+| `plotResiduals()`     | Produire graphique des résidus en fonction des         |
+|                       | valeures prédites ou d'une autre variable et valider   |
+|                       | l'absence de patrons et heteroscedasticité.            |
++-----------------------+--------------------------------------------------------+
+
+
+## Functions importantes
+
+### Tests individuels (utilisés par les autre fonctions)
+
++--------------------+---------------------------------------------------------+
+| Fonction           | Déscription                                             |
++====================+=========================================================+
+| `testUniformity()` | Produire un graphique QQ et vérifier l'uniformité de la |
+|                    | distribution des résidus.                               |
++--------------------+---------------------------------------------------------+
+| `testQuantile()`   | Produire un graphique des résidus en fonction des       |
+|                    | valeures prédites et vérifier l'absence de patrons et   |
+|                    | heteroscedasticité.                                     |
++--------------------+---------------------------------------------------------+
+| `testDispersion()` | Vérifier la dispersion.                                 |
++--------------------+---------------------------------------------------------+
+| `testOutliers()`   | Vérifier la frequence des résidus extrêmes.             |
++--------------------+---------------------------------------------------------+
+
+
+## Functions importantes
+
+### Autocorrelation temporelle et spatiale
+
++---------------------------------+---------------------------------------------+
+| Fonction                        | Déscription                                 |
++=================================+=============================================+
+| `recalculateResiduals()`        | Agréger les résidus par groupe (par exemple |
+|                                 | par période de temps ou par lieu            |
+|                                 | géographique).                              |
++---------------------------------+---------------------------------------------+
+| `testTemporalAutocorrelation()` | Vérifier l'autocorrelation temporelle       |
+|                                 | résiduelle.                                 |
++---------------------------------+---------------------------------------------+
+| `testSpatialAutocorrelation()`  | Vérifier l'autocorrelation spatiale         |
+|                                 | résiduelle.                                 |
++---------------------------------+---------------------------------------------+
+
+
+## Functions importantes
+
+### Excès de zéros
+
++-----------------------+------------------------------------------------------+
+| Fonction              | Déscription                                          |
++=======================+======================================================+
+| `testZeroInflation()` | Vérifier s'il y a plus de zéros exacts que ceux pris |
+|                       | en compte par le modèle.                             |
++-----------------------+------------------------------------------------------+
+
+
+## Functions importantes
+
+### Modèles bayésiens et autres
+
++------------------+-------------------------------------------------------------+
+| Fonction         | Déscription                                                 |
++==================+=============================================================+
+| `createDHARMa()` | Calculer les résidus à partir d'un ensemble de simulations. |
+|                  | Utile pour valider des modèles bayésiens.                   |
++------------------+-------------------------------------------------------------+
+
+*Voir aussi:* https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMaForBayesians.html 
+

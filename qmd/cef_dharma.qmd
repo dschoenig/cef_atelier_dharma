@@ -1,0 +1,1248 @@
+---
+title: "Script: Validation de modèles de régression en R"
+subtitle: "Version 1"
+date: last-modified
+date-format: iso
+published-title: Date
+author:
+  - name: Daniel Schoenig
+    corresponding: true
+    affiliations:
+      - ref: cef
+  - name: Mégane Déziel
+    corresponding: true
+    affiliations:
+      - ref: cef
+affiliations:
+  - id: cef
+    name: Centre d'étude de la forêt, Université du Québec à Montréal
+    city: Montréal
+format-links: false
+cache: true
+format:
+  html:
+    embed-resources: true
+    theme: pulse
+    toc: true
+    fig-format: png
+    number-sections: true
+---
+
+
+# Préparation
+
+##  Paquets et options
+
+```{r}
+#| eval: false
+install.packages(c("DHARMa",
+                   "data.table",
+                   "lme4",
+                   "Matrix",
+                   "TMB",
+                   "glmmTMB",
+                   "mgcv",
+                   "mgcViz",
+                   "gratia",
+                   "marginaleffects",
+                   "ggplot2",
+                   "colorspace",
+                   "sf"))
+```
+
+
+```{r}
+#| output: false
+#| cache: false
+library(DHARMa)
+library(data.table)
+library(lme4)
+library(glmmTMB)
+library(mgcv)
+library(marginaleffects)
+library(ggplot2)
+library(colorspace)
+library(sf)
+
+options(show.signif.stars = FALSE)
+```
+
+## Thème pour ggplot2
+
+```{r}
+#| include: false
+#| cache: false
+base.family <- "IBMPlexSansCondensed"
+base.size <- 11
+plot_theme <-
+  theme_light(base_size = base.size) +
+  theme(
+        plot.title = element_text(hjust = 0,
+                                  face = "bold",
+                                  margin = margin(l = 0, b = base.size/3, t = base.size/3)),
+        plot.tag = element_text(face = "bold"),
+        axis.line.x = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.line.y = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.title.x = element_text(margin = margin(t = base.size/2)),
+        axis.title.y = element_text(margin = margin(r = base.size/2)),
+        # axis.text.y = element_text(color = "black", size = rel(1)),
+        # axis.text.x = element_text(color = "black"),
+        # legend.title = element_text(margin = margin(b = base.size)),
+        legend.position = "right",
+        legend.justification = "top",
+        legend.key.size = unit(base.size, "pt"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        # panel.spacing.x = unit(base.size, "pt"),
+        # panel.spacing.y = unit(base.size/2, "pt"),
+        plot.margin = margin(3, 3, 3, 3),
+        strip.text = element_text(size = rel(0.8),
+                                  hjust = 0.5,
+                                  color = "black",
+                                  margin = margin(base.size/2,
+                                                  base.size/2,
+                                                  base.size/2,
+                                                  base.size/2)),
+        strip.background = element_rect(fill = "gray90", colour = NA))
+theme_set(plot_theme)
+```
+
+```{r}
+#| eval: false
+base.size <- 11
+plot_theme <-
+  theme_light(base_size = base.size) +
+  theme(plot.title = element_text(hjust = 0,
+                                  face = "bold",
+                                  margin = margin(l = 0, b = base.size/3, t = base.size/3)),
+        plot.tag = element_text(face = "bold"),
+        axis.line.x = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.line.y = element_line(color = "black",
+                                   linewidth = rel(0.5)),
+        axis.title.x = element_text(margin = margin(t = base.size/2)),
+        axis.title.y = element_text(margin = margin(r = base.size/2)),
+        legend.position = "right",
+        legend.justification = "top",
+        legend.key.size = unit(base.size, "pt"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        plot.margin = margin(3, 3, 3, 3),
+        strip.text = element_text(size = rel(0.8),
+                                  hjust = 0.5,
+                                  color = "black",
+                                  margin = margin(base.size/2,
+                                                  base.size/2,
+                                                  base.size/2,
+                                                  base.size/2)),
+        strip.background = element_rect(fill = "gray90", colour = NA))
+
+theme_set(plot_theme)
+```
+
+
+# Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
+
+
+## Exploration des données
+
+**Variables**
+
+- `quality`: indice de qualité de site, de 1 (le meilleur) à 5 (le
+  pire) ;
+- `site`: identité du site ;
+- `tree`: identité de l'arbre dans le site ;
+- `age.base` : âge de l'arbre déterminé au niveau du sol (années) ;
+- `height` : hauteur de l'arbre (m) ;
+- `dbh.cm` : diamètre de l'arbre à hauteur de poitrine (cm) ;
+- `age.bh` : âge de l'arbre à hauteur de poitrine (années) ;
+- `volume` : volume de l'arbre (10^-3^ m^3^) ;
+- `tree.id`: identité unique de l'arbre.
+
+
+**Références**
+
+Guttenberg, A. R. von. (1915). Wachstum und Ertrag der Fichte im
+Hochgebirge. Franz Deuticke. https://doi.org/10.5962/bhl.title.15664
+
+Zeide, B. (1993). Analysis of Growth Equations. Forest Science, 39(3),
+594–616. https://doi.org/10.1093/forestscience/39.3.594
+
+Robinson, A. P., & Hamann, J. D. (2011). Forest analytics with R: An
+introduction. Springer.
+
+
+```{r}
+#| include: false
+gutten <- readRDS("../data/gutten.rds")
+```
+
+```{r}
+#| eval: false
+gutten <- readRDS("gutten.rds")
+```
+
+```{r}
+gutten
+```
+
+```{r}
+ggplot(gutten) +
+  geom_point(aes(x = age.base, y = volume, colour = quality),
+             alpha = 0.5) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+## Assumer une distribution normale pour la réponse
+
+```{r}
+mod <- glm(volume ~ age.base * quality,
+           family = gaussian(link = "identity"),
+           data = gutten)
+
+summary(mod)
+```
+
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid)
+
+mod.pred
+```
+
+```{r}
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.2) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+
+### Résidus bruts
+
+```{r}
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+mod.res <- residuals(mod)
+mod.fit <- fitted(mod)
+
+ggplot() +
+  geom_hline(yintercept = 0, colour = 2) +
+  geom_point(aes(y = mod.res, x = mod.fit), alpha = 0.3) +
+  labs(x = "Fitted", y = "Residual")
+
+ggplot() +
+  geom_hline(yintercept = 0, colour = 2) +
+  geom_point(aes(y = mod.res, x = rank(mod.fit)), alpha = 0.3) +
+  labs(x = "Fitted (rank)", y = "Residual")
+```
+
+### Résidus quantiles avec `DHARMa`
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+
+```{r}
+#| eval: false
+?simulateResiduals()
+```
+
+```{r}
+testUniformity(mod.qres)
+testDispersion(mod.qres)
+testOutliers(mod.qres)
+```
+
+```{r}
+testQuantiles(mod.qres)
+```
+
+
+## Distribution Gamma
+
+```{r}
+mod <- glm(volume ~ age.base * quality,
+           family = Gamma(link = "log"),
+           data = gutten)
+
+summary(mod)
+```
+
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid)
+
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.2) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+#| layout-nrow: 2
+plotResiduals(mod.qres, gutten$quality)
+plotResiduals(mod.qres, gutten$age.base)
+```
+
+
+## Modifier l'effet d'une variable explicative
+
+```{r}
+mod <- glm(volume ~ poly(age.base, 2) * quality,
+           family = Gamma(link = "log"),
+           data = gutten)
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+plotResiduals(mod.qres, gutten$age.base)
+```
+
+```{r}
+mod <- glm(volume ~ poly(age.base, 5) * quality,
+           family = Gamma(link = "log"),
+           data = gutten)
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+#| layout-nrow: 2
+plotResiduals(mod.qres, gutten$quality)
+plotResiduals(mod.qres, gutten$age.base)
+```
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid)
+
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.3) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+
+## Modéliser la structure de dépendece (effets aléatoires)
+
+```{r}
+
+mod <- glmmTMB(volume ~ poly(age.base, 5) * quality + (1 | site + tree.id),
+              family = Gamma(link = "log"),
+              data = gutten)
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid, re.form = NA)
+
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.3) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+
+## Distribution Tweedie
+
+```{r}
+mod <- glmmTMB(volume ~ poly(age.base, 5) * quality + (1 | site + tree.id),
+              family = tweedie(link = "log"),
+              data = gutten)
+
+summary(mod)
+AIC(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid, re.form = NA)
+
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.3) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+## Modéliser la dispersion directement
+
+```{r}
+mod <- glmmTMB(volume ~ poly(age.base, 5) * quality + (1 | site + tree.id),
+               dispformula = ~ age.base * quality,
+               family = Gamma(link = "log"),
+               data = gutten)
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+age.seq <- seq(min(gutten$age.base), max(gutten$age.base), length.out = 100)
+quality.u <- unique(gutten$quality)
+
+pred.grid <- datagrid(age.base = age.seq,
+                      quality = quality.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid, re.form = NA)
+
+ggplot(mod.pred) +
+  geom_point(data = gutten,
+             aes(x = age.base, y = volume, colour = quality),
+                 alpha = 0.3) +
+  geom_line(aes(x = age.base, y = estimate, colour = quality)) +
+  geom_ribbon(aes(x = age.base, ymin = conf.low, ymax = conf.high,
+                  group = quality),
+              alpha = 0.2) +
+  facet_wrap(vars(quality)) +
+  labs(y = "Volume (m³/1000)",
+       x = "Age (years)",
+       colour = "Site quality")
+```
+
+
+
+# Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
+
+
+## Exploration des données
+
+**Variables**
+
+- `tree.id` : identité de l'arbre (79 individus) ;
+- `day` : nombre de jours depuis le 1er janvier 1988 ;
+- `size` : taille de l'arbre (hauteur multipliée par le diamètre,
+  10^-4^ m^3^) ;
+- `treatment` : indique si les arbres sont maintenus dans un
+  environnement normal (`control`) ou enrichi (70 nl l^-1^) en ozone
+  (`ozone`).
+
+
+**Références**
+
+Diggle, P., Heagerty, P., Liang, K.-Y., & Zeger, S. (2002). Analysis of
+Longitudinal Data (Second Edition). Oxford University Press.
+
+Données recueillies par Dr Peter Lucas (*Biological Sciences Division,
+Lancaster University*).
+
+
+```{r}
+#| include: false
+sitka <- readRDS("../data/sitka.rds")
+```
+
+```{r}
+#| eval: false
+sitka <- readRDS("sitka.rds")
+```
+
+```{r}
+sitka
+```
+
+
+
+```{r}
+ggplot(sitka) +
+  geom_line(data = sitka,
+            aes(x = day, y = size,
+                group = tree.id, colour = treatment),
+            alpha = 0.5) +
+  scale_colour_brewer(type = "qual", palette = "Set1") +
+  labs(x = "Time (days)",
+       y = "Size (cm²m)",
+       colour = "Treatment")
+```
+
+
+## Un prémier modèle
+
+
+```{r}
+mod <- glmmTMB(size ~ day * treatment + (1 | tree.id),
+               data = sitka,
+               family = Gamma(link = "log"))
+
+summary(mod)
+```
+
+
+```{r}
+day.seq <- seq(min(sitka$day), max(sitka$day), length.out = 100)
+treatment.u <- unique(sitka$treatment)
+
+pred.grid <- datagrid(day = day.seq,
+                      treatment = treatment.u,
+                      model = mod)
+mod.pred <- predictions(mod, newdata = pred.grid, re.form = NA)
+
+ggplot(mod.pred) +
+  geom_line(data = sitka, aes(x = day, y = size, group = tree.id),
+            alpha = 0.2) +
+  geom_ribbon(aes(x = day, ymin = conf.low, ymax = conf.high,
+                  fill = treatment),
+              alpha = 0.2) +
+  geom_line(aes(x = day, y = estimate, colour = treatment)) +
+  scale_colour_brewer(type = "qual", palette = "Set1") +
+  scale_fill_brewer(type = "qual", palette = "Set1",
+                    guide = "none") +
+  labs(x = "Time (days)",
+       y = "Size (cm²m)",
+       colour = "Treatment")
+
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres.time <- recalculateResiduals(mod.qres, group = sitka$day)
+
+testTemporalAutocorrelation(residuals(mod.qres.time), unique(sitka$day))
+```
+
+
+## Intégrer l'autocorrelation temporelle
+
+### Variation temporelle
+
+```{r}
+mod <- gam(size ~ s(day) + treatment + s(tree.id, bs = "re"),
+           data = sitka,
+           family = Gamma(link = "log"),
+           method = "REML")
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+day.seq <- seq(min(sitka$day), max(sitka$day), length.out = 100)
+treatment.u <- unique(sitka$treatment)
+
+pred.grid <- datagrid(day = day.seq,
+                      treatment = treatment.u,
+                      model = mod)
+mod.pred <- predictions(mod,
+                        newdata = pred.grid,
+                        exclude = "s(tree.id)")
+
+ggplot(mod.pred) +
+  geom_line(data = sitka, aes(x = day, y = size, group = tree.id),
+            alpha = 0.2) +
+  geom_ribbon(aes(x = day, ymin = conf.low, ymax = conf.high,
+                  fill = treatment),
+              alpha = 0.2) +
+  geom_line(aes(x = day, y = estimate, colour = treatment)) +
+  scale_colour_brewer(type = "qual", palette = "Set1") +
+  scale_fill_brewer(type = "qual", palette = "Set1",
+                    guide = "none") +
+  labs(x = "Time (days)",
+       y = "Size (cm²m)",
+       colour = "Treatment")
+```
+
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres.time <- recalculateResiduals(mod.qres, group = sitka$day)
+
+testTemporalAutocorrelation(residuals(mod.qres.time), unique(sitka$day))
+```
+
+
+### Variation temporelle par traitement
+
+```{r}
+mod <- gam(size ~
+             s(day) + treatment +
+             s(day, treatment, bs = "sz") +
+             s(tree.id, bs = "re"),
+           data = sitka,
+           family = Gamma(link = "log"),
+           method = "REML")
+
+summary(mod)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres)
+```
+
+```{r}
+day.seq <- seq(min(sitka$day), max(sitka$day), length.out = 100)
+treatment.u <- unique(sitka$treatment)
+
+pred.grid <- datagrid(day = day.seq,
+                      treatment = treatment.u,
+                      model = mod)
+mod.pred <- predictions(mod,
+                        newdata = pred.grid,
+                        exclude = "s(tree.id)")
+
+ggplot(mod.pred) +
+  geom_line(data = sitka, aes(x = day, y = size, group = tree.id),
+            alpha = 0.2) +
+  geom_ribbon(aes(x = day, ymin = conf.low, ymax = conf.high,
+                  fill = treatment),
+              alpha = 0.2) +
+  geom_line(aes(x = day, y = estimate, colour = treatment)) +
+  scale_colour_brewer(type = "qual", palette = "Set1") +
+  scale_fill_brewer(type = "qual", palette = "Set1",
+                    guide = "none") +
+  labs(x = "Time (days)",
+       y = "Size (cm²m)",
+       colour = "Treatment")
+```
+
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres.time <- recalculateResiduals(mod.qres, group = sitka$day)
+
+testTemporalAutocorrelation(residuals(mod.qres.time), unique(sitka$day))
+```
+
+```{r}
+gratia::draw(mod)
+```
+
+
+# Exemple 3: Distribution des lichens en Suède
+
+
+## Exploration des données
+
+**Variables**
+
+- `tree.id` : identité unique de l'arbre ;
+- *Informations sur l'inventaire* : `ip` (période d'inventaire, `1` ou
+  `2`) ; `region` (région de l'inventaire) ; `year` (année de
+  l'évaluation) ;
+- `east`, `north` : coordonnées projetées dans la grille de référence
+  suédoise (EPSG : 3006) ;
+- `species` : genre du lichen (soit `Usnea`, `Aleactoria`, ou `Bryoria`)
+  ;
+- `occurrence` : indique si des lichens du genre correspondant ont été
+  trouvés sur l'arbre (`1`) ou pas (`0`) ;
+- *Variables environnementales* : `mat` (proportion de forêts matures
+  dans un rayon de 100 m) ; `temp` (température annuelle moyenne, °C) ;
+  `rain` (cumul annuel de pluie, mm) ; `ndep` (dépôt annuel moyen
+  d'azote, kg N ha^-1^ an^-1^) ;
+- *Variables au niveau de l'arbre* : `dbh` (diamètre à hauteur de
+  poitrine, mm) ; `crl` (limite du houppier, m) ;
+- *Variables au niveau du peuplement* : `bas` (surface terrière, m^2^
+  ha^-1^), `age` (âge du peuplement) ;
+- Grille d'agrégation spatiale (20km×20km) : `east.agg`, `north.agg`,
+  `rast.agg.id`
+
+
+**Références**
+
+Esseen, Per-Anders et al. (2022), Multiple drivers of large‐scale lichen
+decline in boreal forest canopies, Dryad, Dataset,
+https://doi.org/10.5061/dryad.2ngf1vhq5
+
+Esseen, P.-A., Ekström, M., Grafström, A., Jonsson, B. G., Palmqvist,
+K., Westerlund, B., & Ståhl, G. (2022). Multiple drivers of large-scale
+lichen decline in boreal forest canopies. Global Change Biology, 28(10),
+3293–3309. https://doi.org/10.1111/gcb.16128
+
+
+```{r}
+#| include: false
+lichen <- readRDS("../data/lichen.rds")
+swe <- st_read("../data/adm_swe.gpkg")
+```
+
+```{r}
+#| eval: false
+lichen <- readRDS("lichen.rds")
+swe <- st_read("adm_swe.gpkg")
+```
+
+```{r}
+lichen
+```
+
+```{r}
+lichen.usnea1 <- lichen[species == "Usnea" & ip == 1]
+```
+
+```{r}
+plot_theme <- 
+  plot_theme +
+  theme(panel.grid.major = element_line(linewidth = rel(1)))
+
+theme_set(plot_theme)
+```
+
+
+```{r}
+#| fig-width: 8
+#| fig-height: 10
+lichen.prop.agg <-
+  lichen[,
+         .(occurrence = mean(occurrence)),
+         by = .(ip, species, east.agg, north.agg)]
+
+ggplot(lichen.prop.agg) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = occurrence)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  facet_grid(rows = vars(ip), cols = vars(species)) +
+  labs(x = NULL, y = NULL, fill = "Occurence probability")
+```
+
+## Modèle climatique
+
+```{r}
+
+mod <-
+  glm(occurrence ~ temp * rain,
+      data = lichen.usnea1,
+      family = binomial(link = "logit"))
+
+summary(mod)
+```
+
+```{r}
+mod.pred <- avg_predictions(mod, by = c("east.agg", "north.agg"))
+
+ggplot(mod.pred) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = estimate)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  labs(x = NULL, y = NULL, fill = "Estimated occcurence\nprobability")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres, quantreg = TRUE)
+```
+
+### Vérifier la dispersion du modèle logistique
+
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.res.agg <- recalculateResiduals(mod.qres, lichen.usnea1$rast.agg.id)
+
+plot(mod.res.agg, quantreg = TRUE)
+```
+
+
+### Vérifier l'autocorrélation spatiale résiduelle
+
+
+```{r}
+testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
+```
+
+```{r}
+lichen.usnea1[, qres := residuals(mod.qres)]
+
+
+lichen.usnea1[,
+              .(qres = sum(qres)/.N),
+              by = c("east.agg", "north.agg")] |>
+ggplot() +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
+  labs(x = NULL, y = NULL, fill = "Quantile residual")
+```
+
+
+### Vérifier les résidus en fonctions des variables explicatives
+
+```{r}
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+plotResiduals(mod.qres, lichen.usnea1$temp, quantreg = TRUE)
+plotResiduals(mod.qres, lichen.usnea1$rain, quantreg = TRUE)
+```
+
+```{r}
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+plotResiduals(mod.qres, lichen.usnea1$ndep, quantreg = TRUE)
+plotResiduals(mod.qres, lichen.usnea1$mat, quantreg = TRUE)
+```
+
+```{r}
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+plotResiduals(mod.qres, lichen.usnea1$dbh, quantreg = TRUE)
+plotResiduals(mod.qres, lichen.usnea1$crl, quantreg = TRUE)
+```
+
+
+```{r}
+#| layout-ncol: 2
+#| fig-width: 4
+#| fig-height: 4
+plotResiduals(mod.qres, lichen.usnea1$bas, quantreg = TRUE)
+plotResiduals(mod.qres, lichen.usnea1$age, quantreg = TRUE)
+```
+
+
+## Modèle écologique
+
+
+
+```{r}
+
+mod <-
+  glm(occurrence ~
+        temp * rain +
+        mat + ndep +
+        dbh + crl +
+        bas + age,
+      data = lichen.usnea1,
+      family = binomial(link = "logit"))
+
+summary(mod)
+```
+
+
+
+```{r}
+mod.pred <- avg_predictions(mod, by = c("east.agg", "north.agg"))
+
+ggplot(mod.pred) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = estimate)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  labs(x = NULL, y = NULL, fill = "Estimated occcurence\nprobability")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres, quantreg = TRUE)
+```
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.res.agg <- recalculateResiduals(mod.qres, lichen.usnea1$rast.agg.id)
+
+plot(mod.res.agg, quantreg = TRUE)
+```
+
+```{r}
+testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
+```
+
+```{r}
+lichen.usnea1[, qres := residuals(mod.qres)]
+
+lichen.usnea1[,
+              .(qres = mean(qres)),
+              by = c("east.agg", "north.agg")] |>
+ggplot() +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
+  labs(x = NULL, y = NULL, fill = "Quantile residual")
+```
+
+
+## Modèle écologique avec effet spatial
+
+
+```{r}
+
+mod <-
+  gam(occurrence ~
+        s(east, north, k = 60) +
+        temp * rain +
+        mat + ndep +
+        dbh + crl +
+        bas + age,
+      data = lichen.usnea1,
+      family = binomial(link = "logit"),
+      method = "REML")
+
+summary(mod)
+```
+
+
+```{r}
+mod.pred <- avg_predictions(mod, by = c("east.agg", "north.agg"))
+
+ggplot(mod.pred) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = estimate)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  labs(x = NULL, y = NULL, fill = "Estimated occcurence\nprobability")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres, quantreg = TRUE)
+```
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.res.agg <- recalculateResiduals(mod.qres, lichen.usnea1$rast.agg.id)
+
+plot(mod.res.agg, quantreg = TRUE)
+```
+
+```{r}
+testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
+```
+
+```{r}
+lichen.usnea1[, qres := residuals(mod.qres)]
+
+lichen.usnea1[,
+              .(qres = mean(qres)),
+              by = c("east.agg", "north.agg")] |>
+ggplot() +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
+  labs(x = NULL, y = NULL, fill = "Quantile residual")
+```
+
+
+## Modèle écologique spatial pour deux périodes d'inventaire
+
+
+```{r}
+
+lichen.usnea <- lichen[species == "Usnea"]
+
+mod <-
+  gam(occurrence ~
+        s(east, north, by = ip, k = 60) +
+        temp * rain +
+        mat + ndep +
+        dbh + crl +
+        bas + age,
+      data = lichen.usnea,
+      family = binomial(link = "logit"),
+      method = "REML")
+
+summary(mod)
+```
+
+
+```{r}
+mod.pred <- avg_predictions(mod, by = c("east.agg", "north.agg", "ip"))
+
+ggplot(mod.pred) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = estimate)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(ip)) +
+  labs(x = NULL, y = NULL, fill = "Estimated occcurence\nprobability")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres, quantreg = TRUE)
+```
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.res.agg <- recalculateResiduals(mod.qres, lichen.usnea$rast.agg.id)
+
+plot(mod.res.agg, quantreg = TRUE)
+```
+
+```{r}
+lichen.usnea[, qres := residuals(mod.qres)]
+
+lichen.usnea[,
+             .(qres = mean(qres)),
+             by = c("ip", "east.agg", "north.agg")] |>
+ggplot() +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
+  facet_wrap(vars(ip)) +
+  labs(x = NULL, y = NULL, fill = "Quantile residual")
+```
+
+
+
+
+## Modèle écologique non-linéaire
+
+
+```{r}
+
+mod <-
+  gam(occurrence ~
+        s(east, north, by = ip, k = 60) +
+        ti(temp, k = 5) +
+        ti(rain, k = 5) +
+        ti(temp, rain, k = c(5, 5)) +
+        s(mat) +
+        s(ndep) +
+        s(dbh) +
+        s(crl) +
+        s(bas) +
+        s(age),
+      data = lichen.usnea,
+      family = binomial(link = "logit"),
+      method = "REML",
+      select = TRUE,
+      optimizer = "efs")
+
+summary(mod)
+```
+
+
+```{r}
+mod.pred <- avg_predictions(mod, by = c("east.agg", "north.agg", "ip"))
+
+ggplot(mod.pred) +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = estimate)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_viridis_c() +
+  facet_wrap(vars(ip)) +
+  labs(x = NULL, y = NULL, fill = "Estimated occcurence\nprobability")
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5.85
+mod.qres <- simulateResiduals(mod)
+
+plot(mod.qres, quantreg = TRUE)
+```
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 5.85
+mod.res.agg <- recalculateResiduals(mod.qres, lichen.usnea$rast.agg.id)
+
+plot(mod.res.agg, quantreg = TRUE)
+```
+
+```{r}
+lichen.usnea[, qres := residuals(mod.qres)]
+
+lichen.usnea[,
+             .(qres = mean(qres)),
+             by = c("ip", "east.agg", "north.agg")] |>
+ggplot() +
+  geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
+  geom_sf(data = swe, fill = NA, colour = "black") +
+  scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
+  facet_wrap(vars(ip)) +
+  labs(x = NULL, y = NULL, fill = "Quantile residual")
+```
+
+
+```{r}
+gratia::draw(mod, rug = FALSE, select = 1:2)
+```
+
+```{r}
+gratia::draw(mod, rug = FALSE, select = 3:5)
+```
+
+```{r}
+#| fig-height: 3
+gratia::draw(mod, rug = FALSE, select = 6:7)
+```
+
+```{r}
+#| fig-height: 3
+gratia::draw(mod, rug = FALSE, select = 8:9)
+```
+
+```{r}
+#| fig-height: 3
+gratia::draw(mod, rug = FALSE, select = 10:11)
+```
+
+# Session
+
+```{r}
+sessionInfo()
+```
