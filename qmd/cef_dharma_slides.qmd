@@ -1062,10 +1062,10 @@ Image: Wikimedia (Lisalunamorris)
 
 
 
-# Functions importantes
+# Fonctions importantes
 
 
-## Functions importantes
+## Fonctions importantes
 
 ### Fonctions principales
 
@@ -1084,7 +1084,7 @@ Image: Wikimedia (Lisalunamorris)
 +-----------------------+--------------------------------------------------------+
 
 
-## Functions importantes
+## Fonctions importantes
 
 ### Tests individuels (utilisés par les autres fonctions)
 
@@ -1104,7 +1104,7 @@ Image: Wikimedia (Lisalunamorris)
 +--------------------+---------------------------------------------------------+
 
 
-## Functions importantes
+## Fonctions importantes
 
 ### Autocorrelation temporelle et spatiale
 
@@ -1123,7 +1123,7 @@ Image: Wikimedia (Lisalunamorris)
 +---------------------------------+---------------------------------------------+
 
 
-## Functions importantes
+## Fonctions importantes
 
 ### Excès de zéros
 
@@ -1135,7 +1135,7 @@ Image: Wikimedia (Lisalunamorris)
 +-----------------------+------------------------------------------------------+
 
 
-## Functions importantes
+## Fonctions importantes
 
 ### Modèles bayésiens et autres
 
