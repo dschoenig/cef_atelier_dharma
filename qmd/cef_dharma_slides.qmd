@@ -17,8 +17,6 @@ affiliations:
   - id: cef
     name: Centre d'étude de la forêt, Université du Québec à Montréal
     city: Montréal
-bibliography: /home/danielschoenig/cloud/phd/literature/bibliographies/phd_all.json
-csl: /home/danielschoenig/cloud/phd/literature/styles/nature.csl
 cache: true
 execute:
   echo: false
@@ -487,6 +485,7 @@ Résidu: $r_i \sim \mathcal{N}(0, \sigma^2)$
 ::::
 
 
+
 ## Résidus du modèle linéaire généralisé
 
 :::: {.columns}
@@ -568,10 +567,11 @@ Résidu: $r_i \sim \mathcal{N}(0, \sigma^2)$
 ::::
 
 
+
 ## Modèle linéaire généralisé
 
-:::: {.columns align=top-baseline}
-::: {.column width="50%"}
+::::: {.columns align=top-baseline}
+:::: {.column width="50%"}
 Pour chaque observation *i*:
 
 $$y_i \sim \mathrm{EF}(\mu_i, \phi)$$
@@ -579,17 +579,49 @@ $$y_i \sim \mathrm{EF}(\mu_i, \phi)$$
 $$g(\mu_i) = \alpha + \beta x_i + \cdots$$
 
 $$y_i = \mu_i + r_i$$
-:::
+::::
 
-::: {.column width="50%"}
+:::: {.column width="50%"}
 Résidu: $r_i \sim ?$
 
 \
 
 **Résidu quantile**: $r_{Qi} \sim \mathcal{U}_{[0, 1]}$
-:::
+
+::::
+:::::
+
+
+
+## Modèle linéaire généralisé
+
+::::: {.columns align=top-baseline}
+:::: {.column width="50%"}
+Pour chaque observation *i*:
+
+$$y_i \sim \mathrm{EF}(\mu_i, \phi)$$
+
+$$g(\mu_i) = \alpha + \beta x_i + \cdots$$
+
+$$y_i = \mu_i + r_i$$
 ::::
 
+:::: {.column width="50%"}
+Résidu: $r_i \sim ?$
+
+\
+
+**Résidu quantile**: $r_{Qi} \sim \mathcal{U}_{[0, 1]}$
+
+\
+
+:::{.callout-note appearance="minimal"}
+Il existe d'autres types de résidus (par exemple *Pearson* où *déviance*) qui
+suivent une distribution presque normale *sous certaines conditions*.
+:::
+
+::::
+:::::
 
 
 # Graphiques de résidus quantiles
@@ -746,29 +778,9 @@ dans le matériel supplémentaire.
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
+| **Gamma**                    | $(0, \infty)$            | Variance égale à la moyenne au carré.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
-|                              |                          | souvent problèmes de surdispersion.                                                 |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-
-
-## Quelques distributions pour la variable de réponse
-
-\small
-
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
-+==============================+==========================+=====================================================================================+
-| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
-|                              |                          | souvent problèmes de surdispersion.                                                 |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que la distribution Poisson).                                   |
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance égale à la moyenne. Souvent problèmes de surdispersion.                    |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
 
 
@@ -781,18 +793,33 @@ dans le matériel supplémentaire.
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
+| **Gamma**                    | $(0, \infty)$            | Variance égale à la moyenne au carré.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
-|                              |                          | souvent problèmes de surdispersion.                                                 |
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance égale à la moyenne. Souvent problèmes de surdispersion.                    |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que la distribution Poisson).                                   |
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais plus fortement que pour la distribution     |
+|                              |                          | Poisson).                                                                           |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que les distributions Gamma                                     |
-|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
-|                              |                          | de zéros.                                                                           |
+
+
+## Quelques distributions pour la variable de réponse
+
+\small
+
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| Distribution                 | Domaine                  | Commentaire                                                                         |
++==============================+==========================+=====================================================================================+
+| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Gamma**                    | $(0, \infty)$            | Variance égale à la moyenne au carré.                                               |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance égale à la moyenne. Souvent problèmes de surdispersion.                    |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais plus fortement que pour la distribution     |
+|                              |                          | Poisson).                                                                           |
++------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une façon plus flexible que les           |
+| (avec 0 < ξ < 1)             |                          | distributions Gamma et Poisson). Permet de prendre en compte un excès de zéros.     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
 
 
@@ -806,52 +833,19 @@ dans le matériel supplémentaire.
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
+| **Gamma**                    | $(0, \infty)$            | Variance égale à la moyenne au carré.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
-|                              |                          | souvent problèmes de surdispersion.                                                 |
+| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance égale à la moyenne. Souvent problèmes de surdispersion.                    |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que la distribution Poisson).                                   |
+| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais plus fortement que pour la distribution     |
+|                              |                          | Poisson).                                                                           |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que les distributions Gamma                                     |
-|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
-|                              |                          | de zéros.                                                                           |
+| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une façon plus flexible que les           |
+| (avec 0 < ξ < 1)             |                          | distributions Gamma et Poisson). Permet de prendre en compte un excès de zéros.     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible                                    |
-|                              |                          | surdispersion. Équivalente à une distribution                                       |
-|                              |                          | binomiale avec un essai.                                                            |
+| **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible surdispersion. Équivalente à une   |
+|                              |                          | distribution binomiale avec un essai.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-
-
-## Quelques distributions pour la variable de réponse
-
-\small
-
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
-+==============================+==========================+=====================================================================================+
-| **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Poisson**                  | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne. En écologie                                      |
-|                              |                          | souvent problèmes de surdispersion.                                                 |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Binomiale négative**       | $\{0,\ 1,\ 2,\ \cdots\}$ | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que la distribution Poisson).                                   |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Tweedie**                  | $[0, \infty)$            | Variance augmente avec la moyenne (mais d'une                                       |
-|                              |                          | façon plus flexible que les distributions Gamma                                     |
-|                              |                          | et Poisson). Permet de prendre en compte un excès                                   |
-|                              |                          | de zéros.                                                                           |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible                                    |
-|                              |                          | surdispersion. Équivalente à une distribution                                       |
-|                              |                          | binomiale avec un essai.                                                            |
-+------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-
 
 
 # Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
@@ -1092,7 +1086,7 @@ Image: Wikimedia (Lisalunamorris)
 
 ## Functions importantes
 
-### Tests individuels (utilisés par les autre fonctions)
+### Tests individuels (utilisés par les autres fonctions)
 
 +--------------------+---------------------------------------------------------+
 | Fonction           | Déscription                                             |

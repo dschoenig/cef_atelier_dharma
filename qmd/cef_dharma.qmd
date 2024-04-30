@@ -148,9 +148,9 @@ theme_set(plot_theme)
 # Exemple 1: Croissance de'l Épinette de Norvège dans les Alpes
 
 
-## Exploration des données
+## Aperçu
 
-**Variables**
+### Variables
 
 - `quality`: indice de qualité de site, de 1 (le meilleur) à 5 (le
   pire) ;
@@ -164,7 +164,7 @@ theme_set(plot_theme)
 - `tree.id`: identité unique de l'arbre.
 
 
-**Références**
+### Références
 
 Guttenberg, A. R. von. (1915). Wachstum und Ertrag der Fichte im
 Hochgebirge. Franz Deuticke. https://doi.org/10.5962/bhl.title.15664
@@ -175,6 +175,8 @@ Zeide, B. (1993). Analysis of Growth Equations. Forest Science, 39(3),
 Robinson, A. P., & Hamann, J. D. (2011). Forest analytics with R: An
 introduction. Springer.
 
+
+## Exploration des données
 
 ```{r}
 #| include: false
@@ -405,7 +407,7 @@ ggplot(mod.pred) +
 ```
 
 
-## Modéliser la structure de dépendece (effets aléatoires)
+## Modéliser la structure de dépendence (effets aléatoires)
 
 ```{r}
 
@@ -537,9 +539,9 @@ ggplot(mod.pred) +
 # Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
 
 
-## Exploration des données
+## Aperçu
 
-**Variables**
+### Variables
 
 - `tree.id` : identité de l'arbre (79 individus) ;
 - `day` : nombre de jours depuis le 1er janvier 1988 ;
@@ -550,7 +552,7 @@ ggplot(mod.pred) +
   (`ozone`).
 
 
-**Références**
+### Références
 
 Diggle, P., Heagerty, P., Liang, K.-Y., & Zeger, S. (2002). Analysis of
 Longitudinal Data (Second Edition). Oxford University Press.
@@ -558,6 +560,8 @@ Longitudinal Data (Second Edition). Oxford University Press.
 Données recueillies par Dr Peter Lucas (*Biological Sciences Division,
 Lancaster University*).
 
+
+## Exploration des données
 
 ```{r}
 #| include: false
@@ -572,7 +576,6 @@ sitka <- readRDS("sitka.rds")
 ```{r}
 sitka
 ```
-
 
 
 ```{r}
@@ -767,9 +770,9 @@ gratia::draw(mod)
 # Exemple 3: Distribution des lichens en Suède
 
 
-## Exploration des données
+## Aperçu
 
-**Variables**
+### Variables
 
 - `tree.id` : identité unique de l'arbre ;
 - *Informations sur l'inventaire* : `ip` (période d'inventaire, `1` ou
@@ -793,7 +796,7 @@ gratia::draw(mod)
   `rast.agg.id`
 
 
-**Références**
+### Références
 
 Esseen, Per-Anders et al. (2022), Multiple drivers of large‐scale lichen
 decline in boreal forest canopies, Dryad, Dataset,
@@ -804,6 +807,8 @@ K., Westerlund, B., & Ståhl, G. (2022). Multiple drivers of large-scale
 lichen decline in boreal forest canopies. Global Change Biology, 28(10),
 3293–3309. https://doi.org/10.1111/gcb.16128
 
+
+## Exploration des données
 
 ```{r}
 #| include: false
@@ -915,7 +920,7 @@ ggplot() +
 ```
 
 
-### Vérifier les résidus en fonctions des variables explicatives
+### Vérifier les résidus en fonction des variables explicatives
 
 ```{r}
 #| layout-ncol: 2
@@ -1245,4 +1250,9 @@ gratia::draw(mod, rug = FALSE, select = 10:11)
 
 ```{r}
 sessionInfo()
+```
+
+```{r}
+#| include: false
+knitr::purl(input = "cef_dharma.qmd", output = "cef_dharma.R")
 ```

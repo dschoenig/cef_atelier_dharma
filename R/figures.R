@@ -67,7 +67,7 @@ dev.off()
 
 sitka <- readRDS("../data/sitka.rds")
 
-png("../qmd/figures/sitka.png", width = 8, height = 5, units = "in", res = 150)
+png("../qmd/figures/sitka.png", width = 10, height = 5, units = "in", res = 150)
 ggplot(sitka) +
   geom_line(data = sitka,
             aes(x = day, y = size,
@@ -860,8 +860,6 @@ plot_res("../qmd/figures/res.glm.4.png")
   labs(y = "Résidu quantile", x = "Variable explicative")) |>
 plot_res("../qmd/figures/res.glm.5.png")
 
-
-plot(qres)
 
 
 # DHARMa plots
