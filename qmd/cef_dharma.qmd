@@ -18,7 +18,7 @@ affiliations:
     name: Centre d'étude de la forêt, Université du Québec à Montréal
     city: Montréal
 format-links: false
-cache: true
+cache: refresh
 format:
   html:
     embed-resources: true
@@ -708,7 +708,7 @@ testTemporalAutocorrelation(residuals(mod.qres.time), unique(sitka$day))
 
 ```{r}
 mod <- gam(size ~
-             s(day) + treatment +
+             s(day) +
              s(day, treatment, bs = "sz") +
              s(tree.id, bs = "re"),
            data = sitka,
@@ -910,13 +910,14 @@ lichen.usnea1[, qres := residuals(mod.qres)]
 
 
 lichen.usnea1[,
-              .(qres = sum(qres)/.N),
+              .(qres = mean(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
   geom_sf(data = swe, fill = NA, colour = "black") +
   scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
   labs(x = NULL, y = NULL, fill = "Quantile residual")
+
 ```
 
 

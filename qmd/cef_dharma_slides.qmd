@@ -1,8 +1,8 @@
 ---
 title: "Validation de modèles de régression en R"
-subtitle: "17^e^ Colloque du CEF"
+subtitle: "18^e^ Colloque du CEF"
 lang: en
-date: 2024-05-01
+date: 2025-05-06
 date-format: iso
 author:
   - name: Daniel Schoenig
@@ -33,7 +33,7 @@ format:
       - ItalicFont=*-LightItalic
       - BoldFont=*-Medium
       - BoldItalicFont=*-MediumItalic
-    monofont: IBMPlexMono
+    monofont: "IBM Plex Mono"
     latex-tinytex: true
     /* pdf-engine: xelatex */
     header-includes: |
@@ -751,7 +751,7 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
@@ -762,11 +762,11 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| **Gamma**                    | $(0, \infty)$            | Variance augmente avec la moyenne.                                                  |
+| **Gamma**                    | $(0, \infty)$            | Variance égale à la moyenne au carré.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
 
 ## Quelques distributions pour la variable de réponse
@@ -774,7 +774,7 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
@@ -789,7 +789,7 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
@@ -807,7 +807,7 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
@@ -829,7 +829,7 @@ dans le matériel supplémentaire.
 \small
 
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
-| Distribution                 | Domaine                  | Commentaire                                                                         |
+| Distribution                 | Support                  | Commentaire                                                                         |
 +==============================+==========================+=====================================================================================+
 | **Normale** (Gaussien)       | $(-\infty, \infty)$      | Variance homogéne pour toutes les observations.                                     |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
@@ -846,6 +846,17 @@ dans le matériel supplémentaire.
 | **Bernoulli**                | $\{0, 1\}$               | Agrégation nécessaire pour détecter une possible surdispersion. Équivalente à une   |
 |                              |                          | distribution binomiale avec un essai.                                               |
 +------------------------------+--------------------------+-------------------------------------------------------------------------------------+
+
+
+## Plus d'information sur les modèles généralisés
+
+Zuur, A. F., Ieno, E. N., Walker, N., Saveliev, A. A., & Smith, G. M.
+(2009). Mixed effects models and extensions in ecology with R. Springer
+New York. https://doi.org/10.1007/978-0-387-87458-6
+
+Dormann, C. (2020). Environmental Data Analysis : An Introduction with
+Examples in R. Springer International Publishing.
+https://doi.org/10.1007/978-3-030-55020-2
 
 
 # Exemple 2: Effet de l'ozone sur les semis de l'épinette de Sitka
