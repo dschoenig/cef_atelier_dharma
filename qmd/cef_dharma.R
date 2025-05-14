@@ -1,22 +1,22 @@
 ## -----------------------------------------------------------------------------
 #| eval: false
-install.packages(c("DHARMa",
-                   "data.table",
-                   "lme4",
-                   "Matrix",
-                   "TMB",
-                   "glmmTMB",
-                   "mgcv",
-                   "mgcViz",
-                   "gratia",
-                   "marginaleffects",
-                   "ggplot2",
-                   "colorspace",
-                   "sf"))
+# install.packages(c("DHARMa",
+#                    "data.table",
+#                    "lme4",
+#                    "Matrix",
+#                    "TMB",
+#                    "glmmTMB",
+#                    "mgcv",
+#                    "mgcViz",
+#                    "gratia",
+#                    "marginaleffects",
+#                    "ggplot2",
+#                    "colorspace",
+#                    "sf"))
 
 
 ## -----------------------------------------------------------------------------
-#| output: false 
+#| output: false
 #| cache: false
 library(DHARMa)
 library(data.table)
@@ -74,36 +74,36 @@ theme_set(plot_theme)
 
 ## -----------------------------------------------------------------------------
 #| eval: false
-base.size <- 11
-plot_theme <-
-  theme_light(base_size = base.size) +
-  theme(plot.title = element_text(hjust = 0,
-                                  face = "bold",
-                                  margin = margin(l = 0, b = base.size/3, t = base.size/3)),
-        plot.tag = element_text(face = "bold"),
-        axis.line.x = element_line(color = "black",
-                                   linewidth = rel(0.5)),
-        axis.line.y = element_line(color = "black",
-                                   linewidth = rel(0.5)),
-        axis.title.x = element_text(margin = margin(t = base.size/2)),
-        axis.title.y = element_text(margin = margin(r = base.size/2)),
-        legend.position = "right",
-        legend.justification = "top",
-        legend.key.size = unit(base.size, "pt"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        plot.margin = margin(3, 3, 3, 3),
-        strip.text = element_text(size = rel(0.8),
-                                  hjust = 0.5,
-                                  color = "black",
-                                  margin = margin(base.size/2,
-                                                  base.size/2,
-                                                  base.size/2,
-                                                  base.size/2)),
-        strip.background = element_rect(fill = "gray90", colour = NA))
-
-theme_set(plot_theme)
+# base.size <- 11
+# plot_theme <-
+#   theme_light(base_size = base.size) +
+#   theme(plot.title = element_text(hjust = 0,
+#                                   face = "bold",
+#                                   margin = margin(l = 0, b = base.size/3, t = base.size/3)),
+#         plot.tag = element_text(face = "bold"),
+#         axis.line.x = element_line(color = "black",
+#                                    linewidth = rel(0.5)),
+#         axis.line.y = element_line(color = "black",
+#                                    linewidth = rel(0.5)),
+#         axis.title.x = element_text(margin = margin(t = base.size/2)),
+#         axis.title.y = element_text(margin = margin(r = base.size/2)),
+#         legend.position = "right",
+#         legend.justification = "top",
+#         legend.key.size = unit(base.size, "pt"),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_blank(),
+#         plot.margin = margin(3, 3, 3, 3),
+#         strip.text = element_text(size = rel(0.8),
+#                                   hjust = 0.5,
+#                                   color = "black",
+#                                   margin = margin(base.size/2,
+#                                                   base.size/2,
+#                                                   base.size/2,
+#                                                   base.size/2)),
+#         strip.background = element_rect(fill = "gray90", colour = NA))
+# 
+# theme_set(plot_theme)
 
 
 ## -----------------------------------------------------------------------------
@@ -113,7 +113,7 @@ gutten <- readRDS("../data/gutten.rds")
 
 ## -----------------------------------------------------------------------------
 #| eval: false
-gutten <- readRDS("gutten.rds")
+# gutten <- readRDS("gutten.rds")
 
 
 ## -----------------------------------------------------------------------------
@@ -194,7 +194,7 @@ plot(mod.qres)
 
 ## -----------------------------------------------------------------------------
 #| eval: false
-?simulateResiduals()
+# ?simulateResiduals()
 
 
 ## -----------------------------------------------------------------------------
@@ -444,7 +444,7 @@ sitka <- readRDS("../data/sitka.rds")
 
 ## -----------------------------------------------------------------------------
 #| eval: false
-sitka <- readRDS("sitka.rds")
+# sitka <- readRDS("sitka.rds")
 
 
 ## -----------------------------------------------------------------------------
@@ -567,7 +567,7 @@ testTemporalAutocorrelation(residuals(mod.qres.time), unique(sitka$day))
 
 ## -----------------------------------------------------------------------------
 mod <- gam(size ~
-             s(day) + treatment +
+             s(day) +
              s(day, treatment, bs = "sz") +
              s(tree.id, bs = "re"),
            data = sitka,
@@ -632,8 +632,8 @@ swe <- st_read("../data/adm_swe.gpkg")
 
 ## -----------------------------------------------------------------------------
 #| eval: false
-lichen <- readRDS("lichen.rds")
-swe <- st_read("adm_swe.gpkg")
+# lichen <- readRDS("lichen.rds")
+# swe <- st_read("adm_swe.gpkg")
 
 
 ## -----------------------------------------------------------------------------
@@ -714,13 +714,14 @@ lichen.usnea1[, qres := residuals(mod.qres)]
 
 
 lichen.usnea1[,
-              .(qres = sum(qres)/.N),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
   geom_sf(data = swe, fill = NA, colour = "black") +
   scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
-  labs(x = NULL, y = NULL, fill = "Quantile residual")
+  labs(x = NULL, y = NULL, fill = "Quantile residual (median)")
+
 
 
 ## -----------------------------------------------------------------------------
@@ -804,7 +805,7 @@ testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
 lichen.usnea1[, qres := residuals(mod.qres)]
 
 lichen.usnea1[,
-              .(qres = mean(qres)),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -864,7 +865,7 @@ testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
 lichen.usnea1[, qres := residuals(mod.qres)]
 
 lichen.usnea1[,
-              .(qres = mean(qres)),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -923,7 +924,7 @@ plot(mod.res.agg, quantreg = TRUE)
 lichen.usnea[, qres := residuals(mod.qres)]
 
 lichen.usnea[,
-             .(qres = mean(qres)),
+             .(qres = median(qres)),
              by = c("ip", "east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -988,7 +989,7 @@ plot(mod.res.agg, quantreg = TRUE)
 lichen.usnea[, qres := residuals(mod.qres)]
 
 lichen.usnea[,
-             .(qres = mean(qres)),
+             .(qres = median(qres)),
              by = c("ip", "east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +

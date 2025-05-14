@@ -910,13 +910,13 @@ lichen.usnea1[, qres := residuals(mod.qres)]
 
 
 lichen.usnea1[,
-              .(qres = mean(qres)),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
   geom_sf(data = swe, fill = NA, colour = "black") +
   scale_fill_continuous_diverging("Blue-Red", mid = 0.5) +
-  labs(x = NULL, y = NULL, fill = "Quantile residual")
+  labs(x = NULL, y = NULL, fill = "Quantile residual (median)")
 
 ```
 
@@ -1012,7 +1012,7 @@ testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
 lichen.usnea1[, qres := residuals(mod.qres)]
 
 lichen.usnea1[,
-              .(qres = mean(qres)),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -1077,7 +1077,7 @@ testSpatialAutocorrelation(mod.qres, lichen.usnea1$east, lichen.usnea1$north)
 lichen.usnea1[, qres := residuals(mod.qres)]
 
 lichen.usnea1[,
-              .(qres = mean(qres)),
+              .(qres = median(qres)),
               by = c("east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -1141,7 +1141,7 @@ plot(mod.res.agg, quantreg = TRUE)
 lichen.usnea[, qres := residuals(mod.qres)]
 
 lichen.usnea[,
-             .(qres = mean(qres)),
+             .(qres = median(qres)),
              by = c("ip", "east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
@@ -1213,7 +1213,7 @@ plot(mod.res.agg, quantreg = TRUE)
 lichen.usnea[, qres := residuals(mod.qres)]
 
 lichen.usnea[,
-             .(qres = mean(qres)),
+             .(qres = median(qres)),
              by = c("ip", "east.agg", "north.agg")] |>
 ggplot() +
   geom_raster(aes(x = east.agg, y = north.agg, fill = qres)) +
